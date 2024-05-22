@@ -10,7 +10,9 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
-            "args": [],
+            "args": [
+                "normal"
+            ],
             "env": {},
             "output": "${workspaceFolder}/gntpd.exe"
         },
@@ -20,7 +22,9 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}",
-            "args": [],
+            "args": [
+                "normal"
+            ],
             "env": {},
             "output": "${workspaceFolder}/gntpd"
         }

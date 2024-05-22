@@ -8,7 +8,9 @@ import (
 )
 
 // NTP服务器监听地址和端口
-const listenAddress = "0.0.0.0:123"
+var stopChan = make(chan struct{})
+
+const listenAddress = "0.0.0.0:12300"
 
 func startNTPServer() {
 	addr, err := net.ResolveUDPAddr("udp", listenAddress)
@@ -25,15 +27,26 @@ func startNTPServer() {
 
 	buffer := make([]byte, 48)
 	for {
-		n, clientAddr, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			log.Printf("Error reading from UDP connection: %v", err)
-			continue
-		}
+		select {
+		case <-stopChan:
+			log.Println("NTP server stopping...")
+			return
+		default:
+			n, clientAddr, err := conn.ReadFromUDP(buffer)
+			if err != nil {
+				log.Printf("Error reading from UDP connection: %v", err)
+				continue
+			}
 
-		// 处理客户端请求并返回时间
-		go handleClient(conn, clientAddr, buffer[:n])
+			// 处理客户端请求并返回时间
+			go handleClient(conn, clientAddr, buffer[:n])
+		}
 	}
+}
+
+func stopNTPServer() {
+	close(stopChan)
+	log.Println("NTP server stopped")
 }
 
 // 处理客户端请求
