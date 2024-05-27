@@ -1,46 +1,88 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	ks "github.com/kardianos/service"
 )
 
-var currentTime time.Time
-var lastSyncTime time.Time
+type JsonNTPConfig struct {
+	NTPServer     string `json:"ntp_server"`
+	NTPServerPort int64  `json:"ntp_server_port"`
+	ServerMode    bool   `json:"server_mode"`
+	ServicePort   int64  `json:"service_port"`
+	Interval      int64  `json:"interval"`
+	Version       string `json:"version"`
+}
+
+const configFile = "config.json"
+
+var gNTPServer = "pool.ntp.org:123"
+var gServerMode = false
+var gServicePort int64 = 123
+var gInterval int64 = 60 // seconds
+
+// loadConfig loads the configuration from the config file,config.json
+func loadConfig() error {
+	var jCfg JsonNTPConfig
+	var retErr error
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		retErr = fmt.Errorf("config file %s not found", configFile)
+	} else if file, erro := os.Open(configFile); erro != nil {
+		retErr = fmt.Errorf("error opening config file: %s", err)
+	} else if content, errr := io.ReadAll(file); errr != nil {
+		retErr = fmt.Errorf("error reading config file: %s", errr)
+	} else if erru := json.Unmarshal(content, &jCfg); erru != nil {
+		retErr = fmt.Errorf("error parsing config file: %s", erru)
+	} else {
+		gNTPServer = fmt.Sprintf("%s:%d", jCfg.NTPServer, jCfg.NTPServerPort)
+		gServerMode = jCfg.ServerMode
+		if jCfg.ServicePort > 0 {
+			gServicePort = jCfg.ServicePort
+		}
+		if jCfg.Interval > 0 {
+			gInterval = jCfg.Interval
+		}
+		fmt.Printf("NTP server configuration loaded successfully.\n"+
+			"NTP Server: %s\nServer Mode: %v\nService Port: %d\nInterval: %d\nVersion: %s\n",
+			gNTPServer, gServerMode, gServicePort, gInterval, jCfg.Version)
+	}
+	return retErr
+}
 
 type program struct{}
 
-func (p *program) Start(s ks.Service) error {
+func (p *program) Start(_ ks.Service) error {
 	go p.run()
 	return nil
 }
 func (p *program) run() {
-	go localStart()
+	localStart()
 }
 
-func (p *program) Stop(s ks.Service) error {
+func (p *program) Stop(_ ks.Service) error {
 	stopNTPServer()
 	return nil
 }
 
 func localStart() {
-	if err := syncTimeFromNTP(); err != nil {
-		log.Printf("Failed to sync time from NTP server,using local time :%v", err)
+	if errl := loadConfig(); errl != nil {
+		log.Println(errl)
 	}
-	startNTPServer()
+	go startNTPServer()
 }
 
 func main() {
 	fmt.Println("gNTPd started ...")
 	if len(os.Args) > 1 && os.Args[1] == "normal" {
 		log.Println("Run mode: normal")
-		go localStart()
+		localStart()
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 		<-sigCh

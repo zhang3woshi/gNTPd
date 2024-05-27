@@ -1,0 +1,19 @@
+builds:
+  - binary: "ntp-server"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: zip
+    name_template: "com.sansi.ntp-server_{{.Os}}_{{.Arch}}_{{.Tag}}_{{ time \"200601021504\" }}"
+    files:
+      - "config.json"
+      - "daemon.json"
+      - "favicon.ico"
+      - "schema.zh_CN.json"

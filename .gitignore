@@ -1,1 +1,6 @@
 *.exe
+dist/
+daemon.json
+favicon.ico
+schema.zh_CN.json
+config.json
